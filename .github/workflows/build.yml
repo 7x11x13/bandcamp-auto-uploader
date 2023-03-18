@@ -21,7 +21,7 @@ jobs:
             release_name: bandcamp-auto-uploader-mac
           - os: windows-latest
             dist_name: bandcamp-auto-uploader.exe
-            release_name: bandcamp-auto_uploader-win.exe
+            release_name: bandcamp-auto-uploader-win.exe
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
