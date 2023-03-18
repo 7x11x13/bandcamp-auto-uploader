@@ -263,7 +263,7 @@ class Album:
             raise ValueError("Album to upload must be a directory")
         album_data = BandcampAlbumData(title=path.name,
                                        price=config.album_price,
-                                       nyp=config.name_your_price)
+                                       nyp=int(config.name_your_price))
         tracks = []
         for file in path.iterdir():
             track = Track.from_file(file, config)
