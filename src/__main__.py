@@ -13,12 +13,12 @@ from InquirerPy import inquirer
 from rich import print
 from rich.markup import escape
 
-from config import init_config, load_config, save_config
+from config import get_config_file_path, init_config, load_config, save_config
 from upload import Album
 
-__version__ = "v0.2.2"
+__version__ = "v0.2.3"
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bandcamp-auto-uploader")
 
 PAGEDATA_BLOB_REGEX = re.compile(r'<div id="pagedata" data-blob="(?P<data>[^"]*)"></div>')
 def get_owned_bands(cj: http.cookiejar.CookieJar):
@@ -28,7 +28,7 @@ def get_owned_bands(cj: http.cookiejar.CookieJar):
     return [band["trackpipe_url_https"] for band in data["identities"]["bands"]]
 
 def try_get_owned_bands_from_cookies_file(cookies_file: str) -> Optional[dict[str, http.cookiejar.CookieJar]]:
-    print(f"Loading cookies from {escape(cookies_file)}")
+    print(f"[yellow]Loading cookies from {escape(cookies_file)}[/]")
     try:
         cj = http.cookiejar.MozillaCookieJar(cookies_file)
         cj.load()
@@ -38,7 +38,7 @@ def try_get_owned_bands_from_cookies_file(cookies_file: str) -> Optional[dict[st
         return None
 
 def try_get_owned_bands_from_browsers() -> Optional[dict[str, http.cookiejar.CookieJar]]:
-    print(f"Loading cookies from browsers")
+    print(f"[yellow]Loading cookies from browsers[/]")
     try:
         url_to_cj = {}
         for cookie_fn in [brave, chrome, chromium, edge, firefox, opera, opera_gx, safari, vivaldi]:
@@ -58,7 +58,7 @@ def try_get_owned_bands_from_browsers() -> Optional[dict[str, http.cookiejar.Coo
         return url_to_cj
     except Exception as ex:
         logger.exception(ex)
-        print("Could not automatically get cookies")
+        print("[bold red]Could not automatically get cookies[/]")
         return None
 
 def main():
@@ -74,20 +74,24 @@ def main():
         path = path_filter(path)
         return path.exists() and not path.is_dir()
     
+    print("-"*40)
     print(f"[bold purple]bandcamp-auto-uploader[/] [bold blue]{__version__}[/] by [green underline link=https://github.com/7x11x13]7x11x13[/]")
+    print("-"*40)
     
     config = load_config()
     if config is None:
-        print("No config file detected. Launching first time setup...")
+        print("[bold yellow]No config file detected. Launching first time setup...[/]")
         config = init_config()
         save_config(config)
-        print("Config saved!")
+        print("[bold green]Config saved![/]")
+    else:
+        print(f"[bold green]Config loaded from {escape(str(get_config_file_path()))}[/]")
         
     urls = None
     if config.cookies_file:
         urls = try_get_owned_bands_from_cookies_file(config.cookies_file)
         if urls is None:
-            print("Could not load cookies.txt file, trying to automatically get cookies")
+            print("[bold red]Could not load cookies file, trying to automatically get cookies[/]")
             
     if urls is None:
         urls = try_get_owned_bands_from_browsers()
@@ -101,12 +105,12 @@ def main():
             config.cookies_file = str(cookies_path.resolve())
             urls = try_get_owned_bands_from_cookies_file(config.cookies_file)
             if urls is None:
-                print("Could not load cookies.txt file!")
+                print("[bold red]Could not load cookies.txt file![/]")
             else:
                 save_config(config)
             
     if len(urls) == 0:
-        print("No bands found! Make sure you are logged in to bandcamp in some browser, or if you are using a cookies.txt file that it is still valid!")
+        print("[bold red]No bands found! Make sure you are logged in to bandcamp in some browser, or if you are using a cookies.txt file that it is still valid![/]")
         return
         
     artist_url = inquirer.select(

@@ -16,7 +16,7 @@ from rich.logging import RichHandler
 
 from config import Config
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bandcamp-auto-uploader")
 logger.setLevel(logging.INFO)
 logger.addHandler(RichHandler())
 

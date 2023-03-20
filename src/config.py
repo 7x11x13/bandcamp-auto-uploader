@@ -4,7 +4,6 @@ from pathlib import Path
 
 import appdirs
 from InquirerPy import inquirer
-from rich.markup import escape
 
 
 @dataclasses.dataclass
@@ -19,12 +18,15 @@ class Config:
     
     
 config_file = Path(appdirs.user_config_dir("bandcamp-auto-uploader", "7x11x13"), "config.json")
+
+def get_config_file_path() -> Path:
+    return config_file
+
 def load_config():
     if not config_file.exists():
         return None
     with open(config_file, "r") as f:
         config = Config(**json.load(f))
-        print(f"Config loaded from {escape(config_file)}")
         return config
 
 def save_config(config: Config):
