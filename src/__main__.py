@@ -3,7 +3,6 @@ import http.cookiejar
 import json
 import logging
 import re
-import traceback
 from pathlib import Path
 
 import requests
@@ -14,6 +13,8 @@ from rich import print
 
 from config import init_config, load_config, save_config
 from upload import Album
+
+__version__ = "v0.2.2"
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,8 @@ def main():
     def file_path_validator(path: str):
         path = path_filter(path)
         return path.exists() and not path.is_dir()
+    
+    print(f"[bold purple]bandcamp-auto-uploader[/] [bold blue]{__version__}[/] by [green underline link=https://github.com/7x11x13]7x11x13[/]")
     
     config = load_config()
     if config is None:
