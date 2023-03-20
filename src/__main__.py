@@ -94,7 +94,7 @@ def main():
                 filter=path_filter,
                 invalid_message="Path must be to an existing file"
             ).execute()
-            config.cookies_file = cookies_path
+            config.cookies_file = str(cookies_path.resolve())
             save_config(config)
             
     if len(urls) == 0:
