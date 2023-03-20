@@ -14,3 +14,7 @@ Download the latest release for your platform [here](https://github.com/7x11x13/
 - RIFF tags are not currently supported by mutagen, so if you want your tracks to be named from the metadata make sure to use ID3 tags
 - The program ignores any non-audio files in the album folder except for the first image it encounters which it makes the album cover
 - Bandcamp only allows WAV, FLAC, and AIFF files to be uploaded
+
+## Acknowledgements
+
+- Thanks [SeyNoe](https://seynoe.bandcamp.com/) for testing
