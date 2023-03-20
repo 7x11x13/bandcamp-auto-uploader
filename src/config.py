@@ -14,6 +14,7 @@ class Config:
     track_streaming: bool = True
     track_downloading: bool = True
     upload_track_art: bool = True
+    cookies_file: str = ""
     
     
 config_file = Path(appdirs.user_config_dir("bandcamp-auto-uploader", "7x11x13"), "config.json")

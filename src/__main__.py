@@ -24,6 +24,11 @@ def get_owned_bands(cj: http.cookiejar.CookieJar):
     data = json.loads(html.unescape(data))
     return [band["trackpipe_url_https"] for band in data["identities"]["bands"]]
 
+def load_cj_from_cookies_txt(cookies_file: str):
+    cj = http.cookiejar.MozillaCookieJar(cookies_file)
+    cj.load()
+    return cj
+
 def get_cj_from_cookie_fn(cookie_fn):
     cj = http.cookiejar.CookieJar()
     for cookie in cookie_fn(domain_name="bandcamp.com"):
@@ -49,34 +54,69 @@ def get_owned_bandcamp_artist_urls():
     return url_to_cj
 
 def main():
+    
+    def path_filter(path: str) -> Path:
+        return Path(path.strip("\"'& "))
+    
+    def dir_path_validator(path: str):
+        path = path_filter(path)
+        return path.exists() and path.is_dir()
+    
+    def file_path_validator(path: str):
+        path = path_filter(path)
+        return path.exists() and path.is_dir()
+    
     config = load_config()
     if config is None:
         print("No config file detected. Launching first time setup...")
         config = init_config()
         save_config(config)
         print("Config saved!")
-    urls_and_cjs = get_owned_bandcamp_artist_urls()
+    cookies_loaded = False
+    if config.cookies_file:
+        print(f"Loading cookies from {config.cookies_file}")
+        try:
+            cj = load_cj_from_cookies_txt(config.cookies_file)
+            urls = get_owned_bands(cj)
+            cookies_loaded = True
+        except Exception as ex:
+            logger.exception(ex)
+            print("Could not load cookies.txt file, trying to automatically get cookies")
+    if not cookies_loaded:
+        try:
+            urls = get_owned_bandcamp_artist_urls()
+        except Exception as ex:
+            logger.exception(ex)
+            print("Could not automatically get cookies")
+            cookies_path = inquirer.filepath(
+                message="Enter path to bandcamp cookies.txt file (or drag and drop file here)",
+                validate=file_path_validator,
+                filter=path_filter,
+                invalid_message="Path must be to an existing file"
+            ).execute()
+            config.cookies_file = cookies_path
+            save_config(config)
+            
+    if len(urls) == 0:
+        print("No bands found! Make sure you are logged in to bandcamp in some browser, or if you are using a cookies.txt file that it is still valid!")
+        return
+        
     artist_url = inquirer.select(
-        message="Choose an artist to upload to:",
-        choices=list(urls_and_cjs)
-    ).execute()
-    
-    def album_path_filter(path: str):
-        return Path(path.strip("\"'& "))
-    
-    def album_path_validator(path: str):
-        path = album_path_filter(path)
-        return path.exists() and path.is_dir()
-    
+            message="Choose an artist to upload to:",
+            choices=list(urls)
+        ).execute()
     album_path = inquirer.filepath(
         message="Enter path to album to upload (drag and drop folder here)",
-        validate=album_path_validator,
-        filter=album_path_filter,
+        validate=dir_path_validator,
+        filter=path_filter,
         invalid_message="Path must be to an existing directory"
     ).execute()
     
     session = requests.Session()
-    session.cookies = get_cj_from_cookie_fn(urls_and_cjs[artist_url])
+    if config.cookies_file:
+        session.cookies = cj
+    else:
+        session.cookies = get_cj_from_cookie_fn(urls[artist_url])
 
     album = Album.from_directory(album_path, config)
     album.upload(session, artist_url)
