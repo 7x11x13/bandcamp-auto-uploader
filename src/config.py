@@ -4,6 +4,7 @@ from pathlib import Path
 
 import appdirs
 from InquirerPy import inquirer
+from rich.markup import escape
 
 
 @dataclasses.dataclass
@@ -23,7 +24,7 @@ def load_config():
         return None
     with open(config_file, "r") as f:
         config = Config(**json.load(f))
-        print(f"Config loaded from {config_file}")
+        print(f"Config loaded from {escape(config_file)}")
         return config
 
 def save_config(config: Config):
