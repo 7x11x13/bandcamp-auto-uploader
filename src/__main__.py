@@ -64,7 +64,7 @@ def main():
     
     def file_path_validator(path: str):
         path = path_filter(path)
-        return path.exists() and path.is_dir()
+        return path.exists() and not path.is_dir()
     
     config = load_config()
     if config is None:
