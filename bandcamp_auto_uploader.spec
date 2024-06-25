@@ -1,6 +1,6 @@
 block_cipher = None
 
-a = Analysis(['src/__main__.py'],
+a = Analysis(['bandcamp_auto_uploader/__main__.py'],
              pathex=['.'],
              binaries=[],
              datas=[],

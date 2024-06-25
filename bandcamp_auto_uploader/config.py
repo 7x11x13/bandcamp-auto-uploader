@@ -15,8 +15,9 @@ class Config:
     track_downloading: bool = True
     upload_track_art: bool = True
     cookies_file: str = ""
-    
-    
+    debug: bool = False
+
+
 config_file = Path(appdirs.user_config_dir("bandcamp-auto-uploader", "7x11x13"), "config.json")
 
 def get_config_file_path() -> Path:
@@ -33,7 +34,7 @@ def save_config(config: Config):
     config_file.parent.mkdir(parents=True, exist_ok=True)
     with open(config_file, "w") as f:
         json.dump(dataclasses.asdict(config), f, indent=4)
-        
+
 def init_config():
     def price_validator(price):
         try:

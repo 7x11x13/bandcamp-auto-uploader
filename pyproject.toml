@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "bandcamp-auto-uploader"
+version = "0.2.4"
+description = "Upload albums to Bandcamp automatically without a Pro account"
+authors = ["7x11x13 <x7x11x13@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+appdirs = "^1.4.4"
+browser-cookie3 = "^0.19.1"
+inquirerpy = "^0.3.4"
+mutagen = "^1.47.0"
+requests = "^2.32.3"
+rich = "^13.7.1"
+
+[tool.poetry.scripts]
+bc-upload = "bandcamp_auto_uploader.__main__:main"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -7,27 +7,44 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from browser_cookie3 import (BrowserCookieError, brave, chrome, chromium, edge,
-                             firefox, opera, opera_gx, safari, vivaldi)
+from browser_cookie3 import (
+    BrowserCookieError,
+    brave,
+    chrome,
+    chromium,
+    edge,
+    firefox,
+    opera,
+    opera_gx,
+    safari,
+    vivaldi,
+)
 from InquirerPy import inquirer
 from rich import print
 from rich.markup import escape
 
-from config import get_config_file_path, init_config, load_config, save_config
-from upload import Album
+from .config import get_config_file_path, init_config, load_config, save_config
+from .upload import Album
 
 __version__ = "v0.2.3"
 
 logger = logging.getLogger("bandcamp-auto-uploader")
 
-PAGEDATA_BLOB_REGEX = re.compile(r'<div id="pagedata" data-blob="(?P<data>[^"]*)"></div>')
+PAGEDATA_BLOB_REGEX = re.compile(
+    r'<div id="pagedata" data-blob="(?P<data>[^"]*)"></div>'
+)
+
+
 def get_owned_bands(cj: http.cookiejar.CookieJar):
     r = requests.get("https://bandcamp.com", cookies=cj)
     data = PAGEDATA_BLOB_REGEX.search(r.text).group("data")
     data = json.loads(html.unescape(data))
     return [band["trackpipe_url_https"] for band in data["identities"]["bands"]]
 
-def try_get_owned_bands_from_cookies_file(cookies_file: str) -> Optional[dict[str, http.cookiejar.CookieJar]]:
+
+def try_get_owned_bands_from_cookies_file(
+    cookies_file: str,
+) -> Optional[dict[str, http.cookiejar.CookieJar]]:
     print(f"[yellow]Loading cookies from {escape(cookies_file)}[/]")
     try:
         cj = http.cookiejar.MozillaCookieJar(cookies_file)
@@ -37,11 +54,24 @@ def try_get_owned_bands_from_cookies_file(cookies_file: str) -> Optional[dict[st
         logger.exception(ex)
         return None
 
-def try_get_owned_bands_from_browsers() -> Optional[dict[str, http.cookiejar.CookieJar]]:
+
+def try_get_owned_bands_from_browsers() -> (
+    Optional[dict[str, http.cookiejar.CookieJar]]
+):
     print(f"[yellow]Loading cookies from browsers[/]")
     try:
         url_to_cj = {}
-        for cookie_fn in [brave, chrome, chromium, edge, firefox, opera, opera_gx, safari, vivaldi]:
+        for cookie_fn in [
+            brave,
+            chrome,
+            chromium,
+            edge,
+            firefox,
+            opera,
+            opera_gx,
+            safari,
+            vivaldi,
+        ]:
             cj = http.cookiejar.CookieJar()
             try:
                 logged_in = False
@@ -61,38 +91,48 @@ def try_get_owned_bands_from_browsers() -> Optional[dict[str, http.cookiejar.Coo
         print("[bold red]Could not automatically get cookies[/]")
         return None
 
+
 def main():
-    
+
     def path_filter(path: str) -> Path:
         return Path(path.strip("\"'& "))
-    
+
     def dir_path_validator(path: str):
         path = path_filter(path)
         return path.exists() and path.is_dir()
-    
+
     def file_path_validator(path: str):
         path = path_filter(path)
         return path.exists() and not path.is_dir()
-    
-    print("-"*40)
-    print(f"[bold purple]bandcamp-auto-uploader[/] [bold blue]{__version__}[/] by [green underline link=https://github.com/7x11x13]7x11x13[/]")
-    print("-"*40)
-    
+
+    print("-" * 40)
+    print(
+        f"[bold purple]bandcamp-auto-uploader[/] [bold blue]{__version__}[/] by [green underline link=https://github.com/7x11x13]7x11x13[/]"
+    )
+    print("-" * 40)
+
     config = load_config()
     if config is None:
         print("[bold yellow]No config file detected. Launching first time setup...[/]")
         config = init_config()
-        save_config(config)
         print("[bold green]Config saved![/]")
     else:
-        print(f"[bold green]Config loaded from {escape(str(get_config_file_path()))}[/]")
-        
+        print(
+            f"[bold green]Config loaded from {escape(str(get_config_file_path()))}[/]"
+        )
+    save_config(config)
+
+    if config.debug:
+        logger.setLevel(logging.DEBUG)
+
     urls = None
     if config.cookies_file:
         urls = try_get_owned_bands_from_cookies_file(config.cookies_file)
         if urls is None:
-            print("[bold red]Could not load cookies file, trying to automatically get cookies[/]")
-            
+            print(
+                "[bold red]Could not load cookies file, trying to automatically get cookies[/]"
+            )
+
     if urls is None:
         urls = try_get_owned_bands_from_browsers()
         while urls is None:
@@ -100,7 +140,7 @@ def main():
                 message="Enter path to bandcamp cookies.txt file (or drag and drop file here)",
                 validate=file_path_validator,
                 filter=path_filter,
-                invalid_message="Path must be to an existing file"
+                invalid_message="Path must be to an existing file",
             ).execute()
             config.cookies_file = str(cookies_path.resolve())
             urls = try_get_owned_bands_from_cookies_file(config.cookies_file)
@@ -108,27 +148,29 @@ def main():
                 print("[bold red]Could not load cookies.txt file![/]")
             else:
                 save_config(config)
-            
+
     if len(urls) == 0:
-        print("[bold red]No bands found! Make sure you are logged in to bandcamp in some browser, or if you are using a cookies.txt file that it is still valid![/]")
+        print(
+            "[bold red]No bands found! Make sure you are logged in to bandcamp in some browser, or if you are using a cookies.txt file that it is still valid![/]"
+        )
         return
-        
+
     artist_url = inquirer.select(
-            message="Choose an artist to upload to:",
-            choices=list(urls)
-        ).execute()
+        message="Choose an artist to upload to:", choices=list(urls)
+    ).execute()
     album_path = inquirer.filepath(
         message="Enter path to album to upload (drag and drop folder here)",
         validate=dir_path_validator,
         filter=path_filter,
-        invalid_message="Path must be to an existing directory"
+        invalid_message="Path must be to an existing directory",
     ).execute()
-    
+
     session = requests.Session()
     session.cookies = urls[artist_url]
 
     album = Album.from_directory(album_path, config)
     album.upload(session, artist_url)
+
 
 if __name__ == "__main__":
     try:

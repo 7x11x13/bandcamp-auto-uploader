@@ -14,7 +14,7 @@ from mutagen.flac import FLAC
 from mutagen.wave import WAVE
 from rich.logging import RichHandler
 
-from config import Config
+from .config import Config
 
 logger = logging.getLogger("bandcamp-auto-uploader")
 logger.setLevel(logging.INFO)
@@ -41,7 +41,7 @@ class BandcampAlbumData:
     public: int = 1
     tralbum_release_message: str = ""
     subscriber_only_message: str = ""
-    
+
     def to_dict(self) -> dict:
         d = {}
         for k, v in dataclasses.asdict(self).items():
@@ -102,14 +102,24 @@ def post_request_with_crumb(session: requests.Session, url: str, data: dict):
 
 
 UPLOADED_FILE_KEY_REGEX = re.compile(r"<Key>(?P<key>[^<]*)</Key>")
-def upload_file(session: requests.Session, artist_url: str, file_name: str, crumbs: dict, api_path: str, file_path: Path = None, file_data: bytes = None) -> str:
+
+
+def upload_file(
+    session: requests.Session,
+    artist_url: str,
+    file_name: str,
+    crumbs: dict,
+    api_path: str,
+    file_path: Path = None,
+    file_data: bytes = None,
+) -> str:
     logger.info(f"Uploading file '{file_name}'...")
     # get upload params
     upload_params_url = urljoin(artist_url, "api/gcsupload_info/1/get_upload_params")
     r = session.post(upload_params_url, json={"filename": file_name})
     r.raise_for_status()
     data = r.json()
-    logger.debug(data)
+    logger.debug(f"Params: {data}")
     gcs_url = data["url"]
     params = {param["key"]: param["value"] for param in data["params"]}
 
@@ -124,11 +134,12 @@ def upload_file(session: requests.Session, artist_url: str, file_name: str, crum
         with open(file_path, "rb") as f:
             multipart_form_data["file"] = (file_name, f)
             r = session.post(gcs_url, files=multipart_form_data)
+            logger.debug(f"Response: {r.text}")
             r.raise_for_status()
     else:
         raise ValueError("Either file_path or file_data must be specified")
     duration = time.time() - start_time
-    logger.debug(r.text)
+    logger.debug(f"Uploaded: {r.text}")
 
     uploaded_file_key = UPLOADED_FILE_KEY_REGEX.search(r.text).group("key")
 
@@ -137,13 +148,13 @@ def upload_file(session: requests.Session, artist_url: str, file_name: str, crum
         "type": "gcs",
         "filename": file_name,
         "key": uploaded_file_key,
-        "duration": int(duration*1000),
-        "crumb": crumbs[api_path]
+        "duration": int(duration * 1000),
+        "crumb": crumbs[api_path],
     }
     uploaded_track_url = urljoin(artist_url, api_path)
     r = post_request_with_crumb(session, uploaded_track_url, uploaded_file_data)
     logger.info(f"File uploaded in {duration:.2f} seconds!")
-    logger.debug(r)
+    logger.debug(f"{r}")
     return r
 
 
@@ -155,20 +166,36 @@ class CoverArt:
     def __init__(self, path: Path = None, data: bytes = None, file_name: str = None):
         self.path = path
         self.data = data
-        
+
         if path is not None:
             self.file_name = path.name
         else:
             self.file_name = file_name
-        
+
         if path is None and (data is None or file_name is None):
-            raise ValueError("Either file path or data and name must be initialized for cover art")
-    
+            raise ValueError(
+                "Either file path or data and name must be initialized for cover art"
+            )
+
     def upload(self, session: requests.Session, artist_url: str, crumbs: dict) -> str:
         if self.path is not None:
-            r = upload_file(session, artist_url, self.file_name, crumbs, "tralbum_art_uploaded", file_path=self.path)
+            r = upload_file(
+                session,
+                artist_url,
+                self.file_name,
+                crumbs,
+                "tralbum_art_uploaded",
+                file_path=self.path,
+            )
         else:
-            r = upload_file(session, artist_url, self.file_name, crumbs, "tralbum_art_uploaded", file_data=self.data)
+            r = upload_file(
+                session,
+                artist_url,
+                self.file_name,
+                crumbs,
+                "tralbum_art_uploaded",
+                file_data=self.data,
+            )
         if r.get("error"):
             raise ValueError(r.get("deets"))
         return r["art_id"]
@@ -176,7 +203,9 @@ class CoverArt:
 
 class Track:
 
-    def __init__(self, path: Path, track_data: BandcampTrackData, cover_art: CoverArt = None):
+    def __init__(
+        self, path: Path, track_data: BandcampTrackData, cover_art: CoverArt = None
+    ):
         self.path = path
         self.file_name = self.path.name
         self.track_data = track_data
@@ -185,10 +214,12 @@ class Track:
     @classmethod
     def from_file(cls, path: Path, config: Config):
         path = Path(path)
-        track_data = BandcampTrackData(price=config.track_price,
-                                       nyp=int(config.name_your_price),
-                                       enable_download=int(config.track_downloading),
-                                       streaming=int(config.track_streaming))
+        track_data = BandcampTrackData(
+            price=config.track_price,
+            nyp=int(config.name_your_price),
+            enable_download=int(config.track_downloading),
+            streaming=int(config.track_streaming),
+        )
         file_data = mutagen.File(path)
         if file_data is None:
             return None
@@ -213,7 +244,9 @@ class Track:
                 track_data.isrc = file_data["isrc"][0]
             # cover art
             if config.upload_track_art and len(file_data.pictures) > 0:
-                name = generate_cover_file_name_from_mimetype(file_data.pictures[0].mime)
+                name = generate_cover_file_name_from_mimetype(
+                    file_data.pictures[0].mime
+                )
                 cover_art = CoverArt(data=file_data.pictures[0].data, file_name=name)
         else:
             # id3 tags
@@ -243,7 +276,14 @@ class Track:
         return cls(path, track_data, cover_art)
 
     def upload(self, session: requests.Session, artist_url: str, crumbs: dict):
-        r = upload_file(session, artist_url, self.file_name, crumbs, "uploaded_track", file_path=self.path)
+        r = upload_file(
+            session,
+            artist_url,
+            self.file_name,
+            crumbs,
+            "uploaded_track",
+            file_path=self.path,
+        )
         self.track_data.encodings_id = r["encodings"]["id"]
 
         # upload cover art
@@ -254,9 +294,16 @@ class Track:
 
 class Album:
 
-    CRUMB_DATA_REGEX = re.compile(r'<meta id="js-crumbs-data" data-crumbs="(?P<crumbs>[^>]*)">')
+    CRUMB_DATA_REGEX = re.compile(
+        r'<meta id="js-crumbs-data" data-crumbs="(?P<crumbs>[^>]*)">'
+    )
 
-    def __init__(self, album_data: BandcampAlbumData, tracks: list[Track], cover_art: CoverArt = None):
+    def __init__(
+        self,
+        album_data: BandcampAlbumData,
+        tracks: list[Track],
+        cover_art: CoverArt = None,
+    ):
         self.album_data = album_data
         self.tracks = tracks
         self.cover_art = cover_art
@@ -266,9 +313,9 @@ class Album:
         path = Path(path)
         if not path.is_dir():
             raise ValueError("Album to upload must be a directory")
-        album_data = BandcampAlbumData(title=path.name,
-                                       price=config.album_price,
-                                       nyp=int(config.name_your_price))
+        album_data = BandcampAlbumData(
+            title=path.name, price=config.album_price, nyp=int(config.name_your_price)
+        )
         tracks = []
         for file in path.iterdir():
             track = Track.from_file(file, config)
@@ -292,7 +339,7 @@ class Album:
         crumbs = self.CRUMB_DATA_REGEX.search(r.text).group("crumbs")
         crumbs = json.loads(html.unescape(crumbs))
         logger.info("Got crumbs!")
-        logger.debug(crumbs)
+        logger.debug(f"Crumbs: {crumbs}")
 
         # upload cover art
         if self.cover_art is not None:
@@ -305,12 +352,11 @@ class Album:
             "paypal_aware": "",
             "action": "save",
             "publish_campaign": "false",
-            "crumb": crumbs["edit_album_cb"]
+            "crumb": crumbs["edit_album_cb"],
         }
         bandcamp_data.update(self.album_data.to_dict())
         edit_album_cb_url = urljoin(artist_url, "edit_album_cb")
         logger.info("Saving changes to album...")
-        logger.debug(bandcamp_data)
         r = post_request_with_crumb(session, edit_album_cb_url, bandcamp_data)
         logger.info(f"Saved changes to album! ID = {r['album']['id']}")
         bandcamp_data["album.id"] = r["album"]["id"]
