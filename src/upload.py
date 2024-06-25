@@ -78,7 +78,7 @@ class BandcampTrackData:
     isrc: str = ""
     release_date: str = ""
     encodings_id: str = ""
-    
+
     def to_dict(self, track_number: int) -> dict:
         d = {}
         for k, v in dataclasses.asdict(self).items():
@@ -87,14 +87,16 @@ class BandcampTrackData:
             k = f"track.{k}_{track_number}"
             d[k] = v
         return d
-    
-    
+
+
 def post_request_with_crumb(session: requests.Session, url: str, data: dict):
     r = session.post(url, data=data)
+    r.raise_for_status()
     res = r.json()
     if res.get("error") == "invalid_crumb":
         data["crumb"] = res["crumb"]
         r = session.post(url, data=data)
+        r.raise_for_status()
         res = r.json()
     return res
 
@@ -105,28 +107,31 @@ def upload_file(session: requests.Session, artist_url: str, file_name: str, crum
     # get upload params
     upload_params_url = urljoin(artist_url, "api/gcsupload_info/1/get_upload_params")
     r = session.post(upload_params_url, json={"filename": file_name})
+    r.raise_for_status()
     data = r.json()
     logger.debug(data)
     gcs_url = data["url"]
     params = {param["key"]: param["value"] for param in data["params"]}
-    
+
     # upload file
     start_time = time.time()
     multipart_form_data = {k: (None, v) for k, v in params.items()}
     if file_data is not None:
         multipart_form_data["file"] = (file_name, file_data)
         r = session.post(gcs_url, files=multipart_form_data)
+        r.raise_for_status()
     elif file_path is not None:
         with open(file_path, "rb") as f:
             multipart_form_data["file"] = (file_name, f)
             r = session.post(gcs_url, files=multipart_form_data)
+            r.raise_for_status()
     else:
         raise ValueError("Either file_path or file_data must be specified")
     duration = time.time() - start_time
     logger.debug(r.text)
-    
+
     uploaded_file_key = UPLOADED_FILE_KEY_REGEX.search(r.text).group("key")
-    
+
     # tell api we uploaded file
     uploaded_file_data = {
         "type": "gcs",
@@ -170,13 +175,13 @@ class CoverArt:
 
 
 class Track:
-    
+
     def __init__(self, path: Path, track_data: BandcampTrackData, cover_art: CoverArt = None):
         self.path = path
         self.file_name = self.path.name
         self.track_data = track_data
         self.cover_art = cover_art
-        
+
     @classmethod
     def from_file(cls, path: Path, config: Config):
         path = Path(path)
@@ -236,26 +241,26 @@ class Track:
                     name = generate_cover_file_name_from_mimetype(pictures[0].mime)
                     cover_art = CoverArt(data=pictures[0].data, file_name=name)
         return cls(path, track_data, cover_art)
-    
+
     def upload(self, session: requests.Session, artist_url: str, crumbs: dict):
         r = upload_file(session, artist_url, self.file_name, crumbs, "uploaded_track", file_path=self.path)
         self.track_data.encodings_id = r["encodings"]["id"]
-        
+
         # upload cover art
         if self.cover_art is not None:
             cover_art_id = self.cover_art.upload(session, artist_url, crumbs)
             self.track_data.art_id = cover_art_id
-            
+
 
 class Album:
-    
+
     CRUMB_DATA_REGEX = re.compile(r'<meta id="js-crumbs-data" data-crumbs="(?P<crumbs>[^>]*)">')
-    
+
     def __init__(self, album_data: BandcampAlbumData, tracks: list[Track], cover_art: CoverArt = None):
         self.album_data = album_data
         self.tracks = tracks
         self.cover_art = cover_art
-    
+
     @classmethod
     def from_directory(cls, path: Path, config: Config):
         path = Path(path)
@@ -269,6 +274,7 @@ class Album:
             track = Track.from_file(file, config)
             if track is not None:
                 tracks.append(track)
+        tracks.sort(key=lambda track: track.track_data.track_number)
         cover_art = None
         for file in path.iterdir():
             s = str(file).lower()
@@ -276,23 +282,24 @@ class Album:
                 cover_art = CoverArt(path=file)
                 break
         return cls(album_data, tracks, cover_art)
-    
+
     def upload(self, session: requests.Session, artist_url: str):
         logger.info("Starting album upload")
         logger.info("Getting crumbs...")
         create_album_url = urljoin(artist_url, "edit_album")
         r = session.get(create_album_url)
+        r.raise_for_status()
         crumbs = self.CRUMB_DATA_REGEX.search(r.text).group("crumbs")
         crumbs = json.loads(html.unescape(crumbs))
         logger.info("Got crumbs!")
         logger.debug(crumbs)
-        
+
         # upload cover art
         if self.cover_art is not None:
             logger.info("Uploading cover art...")
             cover_art_id = self.cover_art.upload(session, artist_url, crumbs)
             self.album_data.art_id = cover_art_id
-        
+
         # save changes to album
         bandcamp_data = {
             "paypal_aware": "",
@@ -307,7 +314,7 @@ class Album:
         r = post_request_with_crumb(session, edit_album_cb_url, bandcamp_data)
         logger.info(f"Saved changes to album! ID = {r['album']['id']}")
         bandcamp_data["album.id"] = r["album"]["id"]
-        
+
         for i, track in enumerate(self.tracks):
             logger.info(f"Uploading track {i+1}/{len(self.tracks)}...")
             track.upload(session, artist_url, crumbs)
