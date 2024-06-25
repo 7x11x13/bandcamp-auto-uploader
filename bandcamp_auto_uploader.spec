@@ -34,4 +34,4 @@ exe = EXE(pyz,
           target_arch=None,
           codesign_identity=None,
           entitlements_file=None,
-          icon='src/img/icon.ico')
+          icon='bandcamp_auto_uploader/img/icon.ico')

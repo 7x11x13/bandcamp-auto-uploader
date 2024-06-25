@@ -3,6 +3,7 @@ import http.cookiejar
 import json
 import logging
 import re
+from importlib.metadata import version
 from pathlib import Path
 from typing import Optional
 
@@ -26,7 +27,7 @@ from rich.markup import escape
 from .config import get_config_file_path, init_config, load_config, save_config
 from .upload import Album
 
-__version__ = "v0.2.3"
+__version__ = version("bandcamp_auto_uploader")
 
 logger = logging.getLogger("bandcamp-auto-uploader")
 
