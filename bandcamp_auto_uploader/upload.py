@@ -113,6 +113,7 @@ def upload_file(
     file_path: Path = None,
     file_data: bytes = None,
 ) -> str:
+    file_name = file_name.encode().decode("ascii", errors="replace")
     logger.info(f"Uploading file '{file_name}'...")
     # get upload params
     upload_params_url = urljoin(artist_url, "api/gcsupload_info/1/get_upload_params")
@@ -142,6 +143,7 @@ def upload_file(
     logger.debug(f"Uploaded: {r.text}")
 
     uploaded_file_key = UPLOADED_FILE_KEY_REGEX.search(r.text).group("key")
+    uploaded_file_key = html.unescape(uploaded_file_key)
 
     # tell api we uploaded file
     uploaded_file_data = {
