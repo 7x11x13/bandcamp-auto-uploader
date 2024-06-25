@@ -15,9 +15,14 @@ mutagen = "^1.47.0"
 requests = "^2.32.3"
 rich = "^13.7.1"
 
+[tool.poetry.group.build]
+optional = true
+
+[tool.poetry.group.build.dependencies]
+pyinstaller = "^6.8.0"
+
 [tool.poetry.scripts]
 bc-upload = "bandcamp_auto_uploader.__main__:main"
-
 
 [build-system]
 requires = ["poetry-core"]
