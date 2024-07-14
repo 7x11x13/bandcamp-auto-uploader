@@ -4,3 +4,4 @@ dist
 .venv
 *.exe
 cookies.txt
+.mypy_cache

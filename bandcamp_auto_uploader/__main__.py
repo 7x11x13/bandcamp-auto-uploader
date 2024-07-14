@@ -24,8 +24,13 @@ from InquirerPy import inquirer
 from rich import print
 from rich.markup import escape
 
-from .config import get_config_file_path, init_config, load_config, save_config
-from .upload import Album
+from bandcamp_auto_uploader.config import (
+    get_config_file_path,
+    init_config,
+    load_config,
+    save_config,
+)
+from bandcamp_auto_uploader.upload import Album
 
 __version__ = version("bandcamp_auto_uploader")
 

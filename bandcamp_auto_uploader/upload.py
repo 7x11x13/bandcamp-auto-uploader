@@ -14,7 +14,7 @@ from mutagen.flac import FLAC
 from mutagen.wave import WAVE
 from rich.logging import RichHandler
 
-from .config import Config
+from bandcamp_auto_uploader.config import Config
 
 logger = logging.getLogger("bandcamp-auto-uploader")
 logger.setLevel(logging.INFO)
