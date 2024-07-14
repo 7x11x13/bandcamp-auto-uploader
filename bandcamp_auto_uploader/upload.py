@@ -5,6 +5,7 @@ import logging
 import re
 import time
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urljoin
 
 import mutagen
@@ -74,7 +75,7 @@ class BandcampTrackData:
     artist: str = ""
     art_id: str = ""
     tags: str = ""
-    license_type: int = "1"
+    license_type: str = "1"
     isrc: str = ""
     release_date: str = ""
     encodings_id: str = ""
@@ -110,9 +111,9 @@ def upload_file(
     file_name: str,
     crumbs: dict,
     api_path: str,
-    file_path: Path = None,
-    file_data: bytes = None,
-) -> str:
+    file_path: Optional[Path] = None,
+    file_data: Optional[bytes] = None,
+):
     file_name = file_name.encode().decode("ascii", errors="replace")
     logger.info(f"Uploading file '{file_name}'...")
     # get upload params
@@ -165,7 +166,12 @@ def generate_cover_file_name_from_mimetype(mime: str):
 
 
 class CoverArt:
-    def __init__(self, path: Path = None, data: bytes = None, file_name: str = None):
+    def __init__(
+        self,
+        path: Optional[Path] = None,
+        data: Optional[bytes] = None,
+        file_name: Optional[str] = None,
+    ):
         self.path = path
         self.data = data
 
@@ -206,7 +212,10 @@ class CoverArt:
 class Track:
 
     def __init__(
-        self, path: Path, track_data: BandcampTrackData, cover_art: CoverArt = None
+        self,
+        path: Path,
+        track_data: BandcampTrackData,
+        cover_art: Optional[CoverArt] = None,
     ):
         self.path = path
         self.file_name = self.path.name
@@ -304,7 +313,7 @@ class Album:
         self,
         album_data: BandcampAlbumData,
         tracks: list[Track],
-        cover_art: CoverArt = None,
+        cover_art: Optional[CoverArt] = None,
     ):
         self.album_data = album_data
         self.tracks = tracks
