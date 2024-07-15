@@ -337,7 +337,9 @@ class Album:
             track = Track.from_file(file, config)
             if track is not None:
                 tracks.append(track)
-        tracks.sort(key=lambda track: track.track_data.track_number)
+        tracks.sort(
+            key=lambda track: (track.track_data.track_number, track.track_data.title)
+        )
         cover_art = None
         for file in path.iterdir():
             s = str(file).lower()
