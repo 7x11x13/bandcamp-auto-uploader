@@ -92,11 +92,13 @@ class BandcampTrackData:
 
 def post_request_with_crumb(session: requests.Session, url: str, data: dict):
     r = session.post(url, data=data)
+    logger.debug(r.text)
     r.raise_for_status()
     res = r.json()
     if res.get("error") == "invalid_crumb":
         data["crumb"] = res["crumb"]
         r = session.post(url, data=data)
+        logger.debug(r.text)
         r.raise_for_status()
         res = r.json()
     return res
@@ -119,6 +121,7 @@ def upload_file(
     # get upload params
     upload_params_url = urljoin(artist_url, "api/gcsupload_info/1/get_upload_params")
     r = session.post(upload_params_url, json={"filename": file_name})
+    logger.debug(r.text)
     r.raise_for_status()
     data = r.json()
     logger.debug(f"Params: {data}")
@@ -353,6 +356,7 @@ class Album:
         logger.info("Getting crumbs...")
         create_album_url = urljoin(artist_url, "edit_album")
         r = session.get(create_album_url)
+        logger.debug(r.text)
         r.raise_for_status()
         crumbs = self.CRUMB_DATA_REGEX.search(r.text).group("crumbs")
         crumbs = json.loads(html.unescape(crumbs))

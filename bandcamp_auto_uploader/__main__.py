@@ -43,6 +43,7 @@ PAGEDATA_BLOB_REGEX = re.compile(
 
 def get_owned_bands(cj: http.cookiejar.CookieJar):
     r = requests.get("https://bandcamp.com", cookies=cj)
+    logger.debug(f"Page text: {r.text}")
     data = PAGEDATA_BLOB_REGEX.search(r.text).group("data")
     data = json.loads(html.unescape(data))
     return [band["trackpipe_url_https"] for band in data["identities"]["bands"]]
@@ -55,6 +56,9 @@ def try_get_owned_bands_from_cookies_file(
     try:
         cj = http.cookiejar.MozillaCookieJar(cookies_file)
         cj.load()
+        logger.debug("Cookies:")
+        for cookie in cj:
+            logger.debug(f"    {cookie.domain}: {cookie.name}")
         return {url: cj for url in get_owned_bands(cj)}
     except Exception as ex:
         logger.exception(ex)
