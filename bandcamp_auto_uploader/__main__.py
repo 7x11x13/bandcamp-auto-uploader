@@ -24,6 +24,7 @@ from InquirerPy import inquirer
 from rich import print
 from rich.markup import escape
 
+from bandcamp_auto_uploader.bandcamp_http_adapter import BandcampHTTPAdapter
 from bandcamp_auto_uploader.config import (
     get_config_file_path,
     init_config,
@@ -68,7 +69,7 @@ def try_get_owned_bands_from_cookies_file(
 def try_get_owned_bands_from_browsers() -> (
     Optional[dict[str, http.cookiejar.CookieJar]]
 ):
-    print(f"[yellow]Loading cookies from browsers[/]")
+    print("[yellow]Loading cookies from browsers[/]")
     try:
         url_to_cj = {}
         for cookie_fn in [
@@ -176,6 +177,7 @@ def main():
     ).execute()
 
     session = requests.Session()
+    session.mount("https://", BandcampHTTPAdapter())
     session.cookies = urls[artist_url]
 
     album = Album.from_directory(album_path, config)
