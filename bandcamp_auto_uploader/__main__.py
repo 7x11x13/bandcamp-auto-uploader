@@ -5,6 +5,7 @@ import logging
 import re
 from importlib.metadata import version
 from pathlib import Path
+import sys
 from typing import Optional
 
 import requests
@@ -169,19 +170,25 @@ def main():
     artist_url = inquirer.select(
         message="Choose an artist to upload to:", choices=list(urls)
     ).execute()
-    album_path = inquirer.filepath(
-        message="Enter path to album to upload (drag and drop folder here)",
-        validate=dir_path_validator,
-        filter=path_filter,
-        invalid_message="Path must be to an existing directory",
-    ).execute()
 
     session = requests.Session()
     session.mount("https://", BandcampHTTPAdapter())
     session.cookies = urls[artist_url]
 
-    album = Album.from_directory(album_path, config)
-    album.upload(session, artist_url)
+    while True:
+        album_path = inquirer.filepath(
+            message="Enter path to album to upload (drag and drop folder here)",
+            validate=dir_path_validator,
+            filter=path_filter,
+            invalid_message="Path must be to an existing directory",
+        ).execute()
+
+        album = Album.from_directory(album_path, config)
+        album.upload(session, artist_url)
+
+        proceed = inquirer.confirm("Upload another album?").execute()
+        if not proceed:
+            sys.exit(0)
 
 
 if __name__ == "__main__":
