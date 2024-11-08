@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bandcamp-auto-uploader"
-version = "0.2.12"
+version = "0.2.13"
 description = "Upload albums to Bandcamp automatically without a Pro account"
 authors = ["7x11x13 <x7x11x13@gmail.com>"]
 license = "MIT"

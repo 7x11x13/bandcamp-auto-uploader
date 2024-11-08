@@ -288,10 +288,11 @@ class Track:
                     name = generate_cover_file_name_from_mimetype(pictures[0].mime)
                     cover_art = CoverArt(data=pictures[0].data, file_name=name)
         # convert track number to int
-        try:
-            track_data.track_number = int(track_data.track_number.split("/")[0])
-        except ValueError:
-            track_data.track_number = 0
+        if not isinstance(track_data.track_number, int):
+            try:
+                track_data.track_number = int(track_data.track_number.split("/")[0])
+            except ValueError:
+                track_data.track_number = 0
         return cls(path, track_data, cover_art)
 
     def upload(self, session: requests.Session, artist_url: str, crumbs: dict):
