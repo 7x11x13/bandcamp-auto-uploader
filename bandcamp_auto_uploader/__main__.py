@@ -110,8 +110,9 @@ def try_get_owned_bands_from_browsers() -> (
                     url_to_cj[url] = cj
             except BrowserCookieError:
                 pass
-            except Exception:
-                logger.exception(f"Failed to get cookies from browser: {cookie_fn.__name__}")
+            except Exception as ex:
+                logger.debug("Cookie load error", exc_info=ex)
+                logger.error(f"[{cookie_fn.__name__}]Failed to get cookies from browser")
         return url_to_cj
     except Exception as ex:
         logger.exception(ex)
