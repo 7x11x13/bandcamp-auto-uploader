@@ -1,11 +1,8 @@
-import html
 import http.cookiejar
-import json
 import logging
-import re
+import sys
 from importlib.metadata import version
 from pathlib import Path
-import sys
 from typing import Optional
 
 import requests
@@ -79,9 +76,9 @@ def try_get_owned_bands_from_cookies_file(
         return None
 
 
-def try_get_owned_bands_from_browsers() -> (
-    Optional[dict[str, http.cookiejar.CookieJar]]
-):
+def try_get_owned_bands_from_browsers() -> Optional[
+    dict[str, http.cookiejar.CookieJar]
+]:
     print("[yellow]Loading cookies from browsers[/]")
     try:
         url_to_cj = {}
@@ -112,7 +109,9 @@ def try_get_owned_bands_from_browsers() -> (
                 pass
             except Exception as ex:
                 logger.debug("Cookie load error", exc_info=ex)
-                logger.error(f"[{cookie_fn.__name__}] Failed to get cookies from browser")
+                logger.error(
+                    f"[{cookie_fn.__name__}] Failed to get cookies from browser"
+                )
         return url_to_cj
     except Exception as ex:
         logger.exception(ex)
@@ -121,16 +120,15 @@ def try_get_owned_bands_from_browsers() -> (
 
 
 def main():
-
     def path_filter(path: str) -> Path:
         return Path(path.strip("\"'& "))
 
-    def dir_path_validator(path: str):
-        path = path_filter(path)
+    def dir_path_validator(path_str: str):
+        path = path_filter(path_str)
         return path.exists() and path.is_dir()
 
-    def file_path_validator(path: str):
-        path = path_filter(path)
+    def file_path_validator(path_str: str):
+        path = path_filter(path_str)
         return path.exists() and not path.is_dir()
 
     print("-" * 40)
