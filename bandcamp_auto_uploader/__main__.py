@@ -37,7 +37,10 @@ logger = logging.getLogger("bandcamp-auto-uploader")
 
 
 def get_owned_bands(cj: http.cookiejar.CookieJar):
-    r = requests.post("https://bandcamp.com/api/design_system/1/menubar", cookies=cj)
+    session = requests.Session()
+    session.mount("https://", BandcampHTTPAdapter())
+    session.cookies.update(cj)
+    r = session.post("https://bandcamp.com/api/design_system/1/menubar")
     logger.debug(f"Page text: {r.text}")
     r.raise_for_status()
     data = r.json()
