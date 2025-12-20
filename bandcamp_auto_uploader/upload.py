@@ -1,11 +1,12 @@
 import dataclasses
 import html
+from io import BufferedReader
 import json
 import logging
 import re
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urljoin
 
 import mutagen
@@ -90,7 +91,7 @@ class BandcampTrackData:
         return d
 
 
-def post_request_with_crumb(session: requests.Session, url: str, data: dict):
+def post_request_with_crumb(session: requests.Session, url: str, data: dict) -> Any:
     r = session.post(url, data=data)
     logger.debug(r.text)
     r.raise_for_status()
@@ -130,7 +131,9 @@ def upload_file(
 
     # upload file
     start_time = time.time()
-    multipart_form_data = {k: (None, v) for k, v in params.items()}
+    multipart_form_data: dict[str, tuple[str | None, bytes | BufferedReader]] = {
+        k: (None, v) for k, v in params.items()
+    }
     if file_data is not None:
         multipart_form_data["file"] = (file_name, file_data)
         r = session.post(gcs_url, files=multipart_form_data)
@@ -146,7 +149,10 @@ def upload_file(
     duration = time.time() - start_time
     logger.debug(f"Uploaded: {r.text}")
 
-    uploaded_file_key = UPLOADED_FILE_KEY_REGEX.search(r.text).group("key")
+    m = UPLOADED_FILE_KEY_REGEX.search(r.text)
+    if m is None:
+        raise ValueError("Could not find uploaded file key")
+    uploaded_file_key = m.group("key")
     uploaded_file_key = html.unescape(uploaded_file_key)
 
     # tell api we uploaded file
@@ -181,6 +187,7 @@ class CoverArt:
         if path is not None:
             self.file_name = path.name
         else:
+            assert file_name is not None
             self.file_name = file_name
 
         if path is None and (data is None or file_name is None):
@@ -213,7 +220,6 @@ class CoverArt:
 
 
 class Track:
-
     def __init__(
         self,
         path: Path,
@@ -229,7 +235,7 @@ class Track:
     def from_file(cls, path: Path, config: Config):
         path = Path(path)
         track_data = BandcampTrackData(
-            price=config.track_price,
+            price=str(config.track_price),
             nyp=int(config.name_your_price),
             enable_download=int(config.track_downloading),
             streaming=int(config.track_streaming),
@@ -313,7 +319,6 @@ class Track:
 
 
 class Album:
-
     CRUMB_DATA_REGEX = re.compile(
         r'<meta id="js-crumbs-data" data-crumbs="(?P<crumbs>[^>]*)">'
     )
@@ -334,7 +339,9 @@ class Album:
         if not path.is_dir():
             raise ValueError("Album to upload must be a directory")
         album_data = BandcampAlbumData(
-            title=path.name, price=config.album_price, nyp=int(config.name_your_price)
+            title=path.name,
+            price=str(config.album_price),
+            nyp=int(config.name_your_price),
         )
         tracks = []
         for file in path.iterdir():
@@ -359,7 +366,10 @@ class Album:
         r = session.get(create_album_url)
         logger.debug(r.text)
         r.raise_for_status()
-        crumbs = self.CRUMB_DATA_REGEX.search(r.text).group("crumbs")
+        m = self.CRUMB_DATA_REGEX.search(r.text)
+        if m is None:
+            raise ValueError("Could not find crumbs")
+        crumbs = m.group("crumbs")
         crumbs = json.loads(html.unescape(crumbs))
         logger.info("Got crumbs!")
         logger.debug(f"Crumbs: {crumbs}")
@@ -385,7 +395,7 @@ class Album:
         bandcamp_data["album.id"] = r["album"]["id"]
 
         for i, track in enumerate(self.tracks):
-            logger.info(f"Uploading track {i+1}/{len(self.tracks)}...")
+            logger.info(f"Uploading track {i + 1}/{len(self.tracks)}...")
             track.upload(session, artist_url, crumbs)
             logger.info("Track uploaded!")
             bandcamp_data.update(track.track_data.to_dict(i))
