@@ -38,17 +38,29 @@ __version__ = version("bandcamp_auto_uploader")
 
 logger = logging.getLogger("bandcamp-auto-uploader")
 
-PAGEDATA_BLOB_REGEX = re.compile(
-    r'<div id="pagedata" data-blob="(?P<data>[^"]*)"></div>'
-)
-
 
 def get_owned_bands(cj: http.cookiejar.CookieJar):
-    r = requests.get("https://bandcamp.com", cookies=cj)
+    r = requests.post("https://bandcamp.com/api/design_system/1/menubar", cookies=cj)
     logger.debug(f"Page text: {r.text}")
-    data = PAGEDATA_BLOB_REGEX.search(r.text).group("data")
-    data = json.loads(html.unescape(data))
-    return [band["trackpipe_url_https"] for band in data["identities"]["bands"]]
+    r.raise_for_status()
+    data = r.json()
+    bands = [data.get("activeBand")]
+
+    # this is untested
+    if data.get("labelBands"):
+        bands.extend(data["labelBands"])
+    if data.get("additionalLabelBands"):
+        bands.extend(data["additionalLabelBands"])
+
+    band_urls = []
+    for band in bands:
+        if not band:
+            continue
+        try:
+            band_urls.append(band["url"])
+        except Exception as ex:
+            logger.info(ex)
+    return band_urls
 
 
 def try_get_owned_bands_from_cookies_file(
@@ -94,9 +106,12 @@ def try_get_owned_bands_from_browsers() -> (
                 if not logged_in:
                     continue
                 for url in get_owned_bands(cj):
+                    logger.info(f"[{cookie_fn.__name__}] Found band: {url}")
                     url_to_cj[url] = cj
             except BrowserCookieError:
                 pass
+            except Exception:
+                logger.exception(f"Failed to get cookies from browser: {cookie_fn.__name__}")
         return url_to_cj
     except Exception as ex:
         logger.exception(ex)
